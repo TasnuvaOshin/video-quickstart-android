@@ -220,10 +220,10 @@ public class VideoActivity extends AppCompatActivity {
 
         // OPTION 1- Generate an access token from the getting started portal
         // https://www.twilio.com/user/account/video/getting-started
-//        videoClient = new VideoClient(VideoActivity.this, TWILIO_ACCESS_TOKEN);
+        videoClient = new VideoClient(VideoActivity.this, TWILIO_ACCESS_TOKEN);
 
         // OPTION 2- Retrieve an access token from your own web app
-         retrieveAccessTokenfromServer();
+//         retrieveAccessTokenfromServer();
 
     }
 
