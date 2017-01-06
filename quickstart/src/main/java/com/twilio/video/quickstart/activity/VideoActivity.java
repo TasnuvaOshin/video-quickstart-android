@@ -6,20 +6,20 @@ import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.gson.JsonObject;
-import com.koushikdutta.async.future.FutureCallback;
-import com.koushikdutta.ion.Ion;
 import com.twilio.video.TwilioException;
 import com.twilio.video.quickstart.R;
 import com.twilio.video.quickstart.dialog.Dialog;
@@ -37,10 +37,16 @@ import com.twilio.video.VideoClient;
 import com.twilio.video.VideoTrack;
 import com.twilio.video.VideoView;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.PriorityBlockingQueue;
 
 public class VideoActivity extends AppCompatActivity {
     private static final int CAMERA_MIC_PERMISSION_REQUEST_CODE = 1;
+    private static final String TAG = "VideoActivity";
 
     /*
      * You must provide a Twilio Access Token to connect to the Video service
@@ -82,6 +88,8 @@ public class VideoActivity extends AppCompatActivity {
     private String participantIdentity;
 
     private int previousAudioMode;
+    private String accessToken = null;
+    private WorkerThread workerThread;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -106,6 +114,12 @@ public class VideoActivity extends AppCompatActivity {
          * Needed for setting/abandoning audio focus during call
          */
         audioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+
+        /*
+         * Create worker thread
+         */
+        workerThread = new WorkerThread("WorkerThread");
+        workerThread.start();
 
         /*
          * Check camera and microphone permissions. Needed in Android M.
@@ -147,6 +161,11 @@ public class VideoActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        /*
+         *  Teardown worker thread
+         */
+        workerThread.quit();
+
         /*
          * Release local media when no longer needed
          */
@@ -201,10 +220,10 @@ public class VideoActivity extends AppCompatActivity {
 
         // OPTION 1- Generate an access token from the getting started portal
         // https://www.twilio.com/user/account/video/getting-started
-        videoClient = new VideoClient(VideoActivity.this, TWILIO_ACCESS_TOKEN);
+//        videoClient = new VideoClient(VideoActivity.this, TWILIO_ACCESS_TOKEN);
 
         // OPTION 2- Retrieve an access token from your own web app
-        // retrieveAccessTokenfromServer();
+         retrieveAccessTokenfromServer();
 
     }
 
@@ -509,23 +528,34 @@ public class VideoActivity extends AppCompatActivity {
     }
 
     private void retrieveAccessTokenfromServer() {
-        Ion.with(this)
-                .load("http://localhost:8000/token.php")
-                .asJsonObject()
-                .setCallback(new FutureCallback<JsonObject>() {
-                    @Override
-                    public void onCompleted(Exception e, JsonObject result) {
-                        if (e == null) {
-                            String accessToken = result.get("token").getAsString();
+        workerThread.submitTask(new Runnable() {
+            @Override
+            public void run() {
+                String responseString = HttpUtils.get("http://localhost:8000/token.php");
 
+                // Attempt to get token
+                try {
+                    JSONObject response = new JSONObject(responseString);
+                    accessToken = response.getString("token");
+                } catch (JSONException e) {
+                    Log.e(TAG, e.getMessage());
+                }
+
+                if (accessToken != null) {
+                    // Create video client on the main thread
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
                             videoClient = new VideoClient(VideoActivity.this, accessToken);
-                        } else {
-                            Toast.makeText(VideoActivity.this,
-                                    R.string.error_retrieving_access_token, Toast.LENGTH_LONG)
-                                    .show();
                         }
-                    }
-                });
+                    });
+                } else {
+                    Toast.makeText(VideoActivity.this,
+                            R.string.error_retrieving_access_token, Toast.LENGTH_LONG)
+                            .show();
+                }
+            }
+        });
     }
 
     private void setAudioFocus(boolean focus) {
@@ -544,6 +574,39 @@ public class VideoActivity extends AppCompatActivity {
         } else {
             audioManager.setMode(previousAudioMode);
             audioManager.abandonAudioFocus(null);
+        }
+    }
+
+    private static class WorkerThread extends HandlerThread {
+        private final Object handlerLock = new Object();
+        private final Queue<Runnable> pendingTasks = new PriorityBlockingQueue<>();
+        private Handler handler;
+
+        public WorkerThread(String name) {
+            super(name);
+        }
+
+        @Override
+        protected void onLooperPrepared() {
+            super.onLooperPrepared();
+            synchronized (handlerLock) {
+                handler = new Handler(getLooper());
+
+                while (!pendingTasks.isEmpty()) {
+                    Runnable runnable = pendingTasks.poll();
+                    handler.post(runnable);
+                }
+            }
+        }
+
+        public void submitTask(Runnable runnable) {
+            synchronized (handlerLock) {
+                if (handler == null) {
+                    pendingTasks.add(runnable);
+                } else {
+                    handler.post(runnable);
+                }
+            }
         }
     }
 }
