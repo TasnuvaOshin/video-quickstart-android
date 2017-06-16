@@ -5,3 +5,7 @@ local.properties
 *.iml
 build
 .DS_Store
+*.o
+*.o.d
+*.so
+*.a

@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">UVCCameraCapturer</string>
+    <string name="toggle_camera">Toggle Camera</string>
+</resources>

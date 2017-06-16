@@ -6,11 +6,13 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:2.3.2'
+        classpath 'com.jakewharton.hugo:hugo-plugin:1.2.1'
     }
 }
 
 allprojects {
     repositories {
+        maven { url 'http://raw.github.com/saki4510t/libcommon/master/repository/' }
         jcenter()
     }
 }
