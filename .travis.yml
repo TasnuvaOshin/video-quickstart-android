@@ -3,17 +3,8 @@ language: android
 android:
   components:
     - platform-tools
-    - build-tools-25.0.0
-    - build-tools-24.0.2
-    - build-tools-24.0.1
-    - build-tools-23.0.3
-    - build-tools-23.0.2
-    - build-tools-23.0.1
+    - build-tools-25.0.2
     - android-25
-    - android-24
-    - android-23
-    - android-19
-    - addon-google_apis-google-23
     - extra-android-m2repository,
     - extra-android-support
     - extra-google-gcm
@@ -58,7 +49,7 @@ before_script:
    ######################################
    - wget -q https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-138.0.0-linux-x86_64.tar.gz
    - tar xzf google-cloud-sdk-138.0.0-linux-x86_64.tar.gz
-   - ./google-cloud-sdk/install.sh --usage-reporting=true --path-update=false --bash-completion=false --additional-components app-engine-java app-engine-python kubectl alpha beta gcloud
+   - ./google-cloud-sdk/install.sh --usage-reporting=true --path-update=false --bash-completion=false --additional-components alpha beta gcloud
    - rm -rf google-cloud-sdk-138.0.0-linux-x86_64.tar.gz
    - ./google-cloud-sdk/bin/gcloud config set --installation component_manager/disable_update_check true
 
@@ -68,8 +59,8 @@ before_script:
    #
    ######################################
    - wget -q https://dl.google.com/android/repository/android-ndk-r12b-linux-x86_64.zip
-   - unzip -o android-ndk-r12b-linux-x86_64.zip \
-   - export ANDROID_NDK_HOME=$HOME/android-ndk-r12b
+#   - unzip -o android-ndk-r12b-linux-x86_64.zip \
+#   - export ANDROID_NDK_HOME=$HOME/android-ndk-r12b
 
 before_cache:
   - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
@@ -80,4 +71,6 @@ cache:
     - $HOME/.gradle/wrapper/
     - $HOME/.android/build-cache
 
-script: ./gradlew assemble
+script:
+  - ./gradlew assemble
+  - ./google-cloud-sdk/bin/gcloud beta test android devices list
