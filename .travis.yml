@@ -61,7 +61,6 @@ before_script:
    - ./google-cloud-sdk/install.sh --usage-reporting=true --path-update=false --bash-completion=false --additional-components app-engine-java app-engine-python kubectl alpha beta gcloud
    - rm -rf google-cloud-sdk-138.0.0-linux-x86_64.tar.gz
    - ./google-cloud-sdk/bin/gcloud config set --installation component_manager/disable_update_check true
-   - sed -i -- 's/\"disable_updater\": false/\"disable_updater\": true/g' /$HOME/google-cloud-sdk/lib/googlecloudsdk/core/config.json
 
    #######################################
    #
