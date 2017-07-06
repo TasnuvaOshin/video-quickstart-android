@@ -32,6 +32,8 @@ jdk:
   - oraclejdk8
 
 before_script:
+   - touch $HOME/.gradle/gradle.properties
+   - echo 'org.gradle.daemon=false' > $HOME/.gradle/gradle.properties
    - mkdir "$ANDROID_HOME/licenses" || true
    - echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > "$ANDROID_HOME/licenses/android-sdk-license"
 
