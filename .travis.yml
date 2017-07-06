@@ -37,12 +37,11 @@ before_script:
    # Gradle
    #
    ######################################
-   - export GRADLE_HOME=$HOME/.gradle
 
    # Add gradle properties
-   - touch $GRADLE_HOME/gradle.properties
+   - touch $HOME/.gradle/gradle.properties
    # Disable gradle daemon
-   - echo 'org.gradle.daemon=false' > $GRADLE_HOME/gradle.properties
+   - echo 'org.gradle.daemon=false' > $$HOME/.gradle/gradle.properties
 
    #######################################
    #
@@ -52,14 +51,22 @@ before_script:
    - mkdir "$ANDROID_HOME/licenses" || true
    - echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > "$ANDROID_HOME/licenses/android-sdk-license"
 
+   #######################################
+   #
+   # Android NDK Setup
+   #
+   ######################################
+   - wget -q https://dl.google.com/android/repository/android-ndk-r12b-linux-x86_64.zip
+   - unzip -o android-ndk-r12b-linux-x86_64.zip \
+   - export ANDROID_NDK_HOME=$HOME/android-ndk-r12b
+
 before_cache:
-  - rm -f  $GRADLE_HOME/caches/modules-2/modules-2.lock
-  - rm -fr $GRADLE_HOME/caches/*/plugin-resolution/
+  - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
+  - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
 cache:
   directories:
-    - $GRADLE_HOME/caches/
-    - $GRADLE_HOME/wrapper/
+    - $HOME/.gradle/caches/
+    - $HOME/.gradle/wrapper/
     - $HOME/.android/build-cache
 
-script:
-  - ./gradlew assemble
+script: ./gradlew assemble
