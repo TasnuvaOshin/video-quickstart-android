@@ -3,7 +3,7 @@ language: android
 android:
   components:
     - platform-tools
-    - build-tools-25.0.2
+    - build-tools-25.0.0
     - android-25
     - extra-android-m2repository,
     - extra-android-support
@@ -59,8 +59,8 @@ before_script:
    #
    ######################################
    - wget -q https://dl.google.com/android/repository/android-ndk-r12b-linux-x86_64.zip
-#   - unzip -o android-ndk-r12b-linux-x86_64.zip \
-#   - export ANDROID_NDK_HOME=$HOME/android-ndk-r12b
+   - unzip -qo android-ndk-r12b-linux-x86_64.zip
+   - export ANDROID_NDK_HOME=$HOME/android-ndk-r12b
 
 before_cache:
   - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
