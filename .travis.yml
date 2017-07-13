@@ -72,5 +72,14 @@ cache:
     - $HOME/.android/build-cache
 
 script:
-  - ./gradlew assemble
+  - git rev-parse HEAD
   - echo "$ANDROID_NDK_HOME"
+
+deploy:
+  provider:
+    - script
+  script:
+    - git rev-parse HEAD
+    - echo "$ANDROID_NDK_HOME"
+  on:
+    tags: true
