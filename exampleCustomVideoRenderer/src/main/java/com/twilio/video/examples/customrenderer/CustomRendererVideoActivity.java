@@ -11,10 +11,13 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.os.Handler;
 
 import com.twilio.video.CameraCapturer;
 import com.twilio.video.LocalVideoTrack;
 import com.twilio.video.VideoView;
+
+import io.alterac.blurkit.BlurKit;
 
 /**
  * This example demonstrates how to implement a custom renderer. Here we render the contents
@@ -29,6 +32,7 @@ public class CustomRendererVideoActivity extends Activity {
     private TextView tapForSnapshotTextView;
     private SnapshotVideoRenderer snapshotVideoRenderer;
     private LocalVideoTrack localVideoTrack;
+    private Handler localHandler;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -38,6 +42,8 @@ public class CustomRendererVideoActivity extends Activity {
         localVideoView = (VideoView) findViewById(R.id.local_video);
         snapshotImageView = (ImageView) findViewById(R.id.image_view);
         tapForSnapshotTextView = (TextView) findViewById(R.id.tap_video_snapshot);
+
+        BlurKit.init(this);
 
         /*
          * Check camera permissions. Needed in Android M.
@@ -82,13 +88,29 @@ public class CustomRendererVideoActivity extends Activity {
     private void addVideo() {
         localVideoTrack = LocalVideoTrack.create(this, true, new CameraCapturer(this,
                 CameraCapturer.CameraSource.FRONT_CAMERA, null));
-        snapshotVideoRenderer = new SnapshotVideoRenderer(snapshotImageView);
+        snapshotVideoRenderer = new SnapshotVideoRenderer(this, snapshotImageView, 25);
         localVideoTrack.addRenderer(localVideoView);
         localVideoTrack.addRenderer(snapshotVideoRenderer);
-        localVideoView.setOnClickListener(v -> {
+        updateLocalBlurFrame();
+        /*localVideoView.setOnClickListener(v -> {
             tapForSnapshotTextView.setVisibility(View.GONE);
             snapshotVideoRenderer.takeSnapshot();
-        });
+        }); */
+    }
+
+    /**
+     * Update local blur frame.
+     */
+    private void updateLocalBlurFrame() {
+        localHandler = new Handler();
+        localHandler.postDelayed(new Runnable() {
+            public void run() {
+                if (snapshotVideoRenderer != null) {
+                    snapshotVideoRenderer.takeSnapshot();
+                    localHandler.postDelayed(this, 100);
+                }
+            }
+        }, 100);
     }
 
     private boolean checkPermissionForCamera(){

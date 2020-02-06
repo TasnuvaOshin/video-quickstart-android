@@ -1,5 +1,6 @@
 package com.twilio.video.examples.customrenderer;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
@@ -11,13 +12,15 @@ import android.widget.ImageView;
 
 import com.twilio.video.I420Frame;
 import com.twilio.video.VideoRenderer;
-
-import tvi.webrtc.RendererCommon;
-import tvi.webrtc.YuvConverter;
+import com.twilio.video.VideoView;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import io.alterac.blurkit.BlurKit;
+import tvi.webrtc.RendererCommon;
+import tvi.webrtc.YuvConverter;
 
 import static android.graphics.ImageFormat.NV21;
 
@@ -26,17 +29,21 @@ import static android.graphics.ImageFormat.NV21;
  * last frame rendered and will update the provided image view any time {@link #takeSnapshot()} is
  * invoked.
  */
-public class SnapshotVideoRenderer implements VideoRenderer {
+public class SnapshotVideoRenderer extends VideoView {
     private final ImageView imageView;
+    private int blurValue;
     private final AtomicBoolean snapshotRequsted = new AtomicBoolean(false);
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    public SnapshotVideoRenderer(ImageView imageView) {
+    public SnapshotVideoRenderer(Context context, ImageView imageView, int blurValue) {
+        super(context);
         this.imageView = imageView;
+        this.blurValue = blurValue;
     }
 
     @Override
     public void renderFrame(final I420Frame i420Frame) {
+
         // Capture bitmap and post to main thread
         if (snapshotRequsted.compareAndSet(true, false)) {
             /*
@@ -48,7 +55,9 @@ public class SnapshotVideoRenderer implements VideoRenderer {
                     captureBitmapFromTexture(i420Frame) :
                     captureBitmapFromYuvFrame(i420Frame);
             handler.post(() -> {
+
                 // Update the bitmap of image view
+                BlurKit.getInstance().blur(bitmap, blurValue);
                 imageView.setImageBitmap(bitmap);
 
                 // Frames must be released after rendering to free the native memory
@@ -66,9 +75,20 @@ public class SnapshotVideoRenderer implements VideoRenderer {
         snapshotRequsted.set(true);
     }
 
+    /**
+     * Update blur value.
+     *
+     * @param blurValue
+     */
+    public void setBlurValue(int blurValue) {
+        this.blurValue = blurValue;
+    }
+
     private Bitmap captureBitmapFromTexture(I420Frame i420Frame) {
+
         int width = i420Frame.rotatedWidth();
         int height = i420Frame.rotatedHeight();
+
         int outputFrameSize = width * height * 3 / 2;
         ByteBuffer outputFrameBuffer = ByteBuffer.allocateDirect(outputFrameSize);
         final float frameAspectRatio = (float) i420Frame.rotatedWidth() /
@@ -87,6 +107,8 @@ public class SnapshotVideoRenderer implements VideoRenderer {
          * we defer instantiation of the converter until frame arrives.
          */
         YuvConverter yuvConverter = new YuvConverter();
+
+        // TODO : error arises here (converter is deprecated? should be replaced with -> yuvConverter.convert(textureBuffer))
         yuvConverter.convert(outputFrameBuffer,
                 width,
                 height,
@@ -98,12 +120,12 @@ public class SnapshotVideoRenderer implements VideoRenderer {
         byte[] data = outputFrameBuffer.array();
         int offset = outputFrameBuffer.arrayOffset();
         int stride = width;
-        ByteBuffer[] yuvPlanes = new ByteBuffer[] {
+        ByteBuffer[] yuvPlanes = new ByteBuffer[]{
                 ByteBuffer.allocateDirect(width * height),
                 ByteBuffer.allocateDirect(width * height / 4),
                 ByteBuffer.allocateDirect(width * height / 4)
         };
-        int[] yuvStrides = new int[] {
+        int[] yuvStrides = new int[]{
                 width,
                 (width + 1) / 2,
                 (width + 1) / 2
@@ -113,12 +135,12 @@ public class SnapshotVideoRenderer implements VideoRenderer {
         yuvPlanes[0].put(data, offset, width * height);
 
         // Write U
-        for (int r = height ; r < height * 3 / 2; ++r) {
+        for (int r = height; r < height * 3 / 2; ++r) {
             yuvPlanes[1].put(data, offset + r * stride, stride / 2);
         }
 
         // Write V
-        for (int r = height ; r < height * 3 / 2 ; ++r) {
+        for (int r = height; r < height * 3 / 2; ++r) {
             yuvPlanes[2].put(data, offset + r * stride + stride / 2, stride / 2);
         }
 
@@ -188,15 +210,15 @@ public class SnapshotVideoRenderer implements VideoRenderer {
         tmp = ByteBuffer.wrap(tmpBytes, 0, width / 2 * height / 2);
 
         copyPlane(yuvPlanes[2], tmp);
-        for (int row = 0 ; row < height / 2 ; row++) {
-            for (int col = 0 ; col < width / 2 ; col++) {
+        for (int row = 0; row < height / 2; row++) {
+            for (int col = 0; col < width / 2; col++) {
                 bytes[width * height + row * width + col * 2]
                         = tmpBytes[row * width / 2 + col];
             }
         }
         copyPlane(yuvPlanes[1], tmp);
-        for (int row = 0 ; row < height / 2 ; row++) {
-            for (int col = 0 ; col < width / 2 ; col++) {
+        for (int row = 0; row < height / 2; row++) {
+            for (int col = 0; col < width / 2; col++) {
                 bytes[width * height + row * width + col * 2 + 1] =
                         tmpBytes[row * width / 2 + col];
             }
@@ -210,13 +232,13 @@ public class SnapshotVideoRenderer implements VideoRenderer {
                                         int height) {
         byte[] bytes = new byte[width * height * 3 / 2];
         int i = 0;
-        for (int row = 0 ; row < height ; row++) {
-            for (int col = 0 ; col < width ; col++) {
+        for (int row = 0; row < height; row++) {
+            for (int col = 0; col < width; col++) {
                 bytes[i++] = yuvPlanes[0].get(col + row * yuvStrides[0]);
             }
         }
-        for (int row = 0 ; row < height / 2 ; row++) {
-            for (int col = 0 ; col < width / 2; col++) {
+        for (int row = 0; row < height / 2; row++) {
+            for (int col = 0; col < width / 2; col++) {
                 bytes[i++] = yuvPlanes[2].get(col + row * yuvStrides[2]);
                 bytes[i++] = yuvPlanes[1].get(col + row * yuvStrides[1]);
             }
