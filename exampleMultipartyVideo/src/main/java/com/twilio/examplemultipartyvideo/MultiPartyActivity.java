@@ -11,6 +11,7 @@ import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -64,6 +65,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
 import java.util.UUID;
+
+import io.alterac.blurkit.BlurKit;
 
 import static android.view.View.GONE;
 import static android.view.View.VISIBLE;
@@ -141,6 +144,10 @@ public class MultiPartyActivity extends AppCompatActivity {
     private ImageView currentDominantSpeakerImg;
     private VideoTextureView localVideoTextureView;
 
+    private SnapshotVideoRenderer snapshotVideoRenderer;
+    private Handler localHandler;
+    private ImageView snapshotImageView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -154,6 +161,10 @@ public class MultiPartyActivity extends AppCompatActivity {
         localVideoActionFab = findViewById(R.id.local_video_action_fab);
         muteActionFab = findViewById(R.id.mute_action_fab);
         networkQualityLevelImage = findViewById(R.id.network_quality_level);
+
+        snapshotImageView = (ImageView) findViewById(R.id.image_view);
+
+        BlurKit.init(this);
 
         initializeParticipantContainers();
         /*
@@ -341,11 +352,15 @@ public class MultiPartyActivity extends AppCompatActivity {
 
         // Share your camera
         cameraCapturerCompat = new CameraCapturer(this, getAvailableCameraSource());
+        snapshotVideoRenderer = new SnapshotVideoRenderer(this, snapshotImageView, 25);
+
         localVideoTrack = LocalVideoTrack.create(this,
                 true,
                 cameraCapturerCompat,
                 LOCAL_VIDEO_TRACK_NAME);
         localVideoTrack.addRenderer(localVideoTextureView);
+        localVideoTrack.addRenderer(snapshotVideoRenderer);
+        updateLocalBlurFrame();
     }
 
     private CameraSource getAvailableCameraSource() {
@@ -1096,5 +1111,20 @@ public class MultiPartyActivity extends AppCompatActivity {
             audioManager.requestAudioFocus(null, AudioManager.STREAM_VOICE_CALL,
                     AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
         }
+    }
+
+    /**
+     * Update local blur frame.
+     */
+    private void updateLocalBlurFrame() {
+        localHandler = new Handler();
+        localHandler.postDelayed(new Runnable() {
+            public void run() {
+                if (snapshotVideoRenderer != null) {
+                    snapshotVideoRenderer.takeSnapshot();
+                    localHandler.postDelayed(this, 100);
+                }
+            }
+        }, 100);
     }
 }
