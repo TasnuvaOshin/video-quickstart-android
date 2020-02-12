@@ -148,6 +148,10 @@ public class MultiPartyActivity extends AppCompatActivity {
     private Handler localHandler;
     private ImageView snapshotImageView;
 
+    private SnapshotVideoRenderer remoteSnapshotVideoRenderer;
+    private Handler handler;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -534,6 +538,11 @@ public class MultiPartyActivity extends AppCompatActivity {
         videoTextureView.setTag(videoTrack);
         videoTextureView.setVisibility(VISIBLE);
         videoTrack.addRenderer(videoTextureView);
+
+        remoteSnapshotVideoRenderer = new SnapshotVideoRenderer(getApplicationContext(), snapshotImageView, 25);
+        videoTrack.addRenderer(remoteSnapshotVideoRenderer);
+        updateRemoteBlurFrame();
+
         participantViewGroupMap.put(remoteParticipant.getSid(), participantContainer);
     }
 
@@ -1124,6 +1133,19 @@ public class MultiPartyActivity extends AppCompatActivity {
                     snapshotVideoRenderer.takeSnapshot();
                     localHandler.postDelayed(this, 100);
                 }
+            }
+        }, 100);
+    }
+
+    /**
+     * Update remote blur frame.
+     */
+    private void updateRemoteBlurFrame() {
+        handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            public void run() {
+                remoteSnapshotVideoRenderer.takeSnapshot();
+                handler.postDelayed(this, 100);
             }
         }, 100);
     }

@@ -19,6 +19,8 @@ import com.twilio.video.VideoView;
 
 import io.alterac.blurkit.BlurKit;
 
+
+
 /**
  * This example demonstrates how to implement a custom renderer. Here we render the contents
  * of our {@link CameraCapturer} to a video view and to a snapshot renderer which allows user to
