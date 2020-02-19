@@ -12,13 +12,15 @@ import android.widget.ImageView;
 
 import com.twilio.video.I420Frame;
 import com.twilio.video.VideoRenderer;
-import com.twilio.video.VideoView;
+import com.twilio.video.VideoTextureView;
 
 import java.io.ByteArrayOutputStream;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.alterac.blurkit.BlurKit;
+import tvi.webrtc.EglRenderer;
 import tvi.webrtc.RendererCommon;
 import tvi.webrtc.YuvConverter;
 
@@ -29,16 +31,19 @@ import static android.graphics.ImageFormat.NV21;
  * last frame rendered and will update the provided image view any time {@link #takeSnapshot()} is
  * invoked.
  */
-public class SnapshotVideoRenderer extends VideoView {
+public class SnapshotVideoRenderer extends VideoTextureView {
     private final ImageView imageView;
     private int blurValue;
     private final AtomicBoolean snapshotRequsted = new AtomicBoolean(false);
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private Handler eglRendererHandler = null;
+    private final VideoTextureView videoTextureView;
 
-    public SnapshotVideoRenderer(Context context, ImageView imageView, int blurValue) {
+    public SnapshotVideoRenderer(Context context, ImageView imageView, int blurValue, VideoTextureView videoTextureView) {
         super(context);
         this.imageView = imageView;
         this.blurValue = blurValue;
+        this.videoTextureView = videoTextureView;
     }
 
     @Override
@@ -46,26 +51,48 @@ public class SnapshotVideoRenderer extends VideoView {
 
         // Capture bitmap and post to main thread
         if (snapshotRequsted.compareAndSet(true, false)) {
-            /*
-             * I420Frame can be represented as texture or an in-memory buffer. yuvPlanes is not
-             * null and textureId is zero when frame is represented in memory and yuvPlanes is
-             * null textureId is a non zero value when the frame is represented as a texture.
-             */
-            final Bitmap bitmap = i420Frame.yuvPlanes == null ?
-                    captureBitmapFromTexture(i420Frame) :
-                    captureBitmapFromYuvFrame(i420Frame);
-            handler.post(() -> {
+            if (eglRendererHandler == null) {
+                eglRendererHandler = getEglHandler();
+            }
+            if (eglRendererHandler != null) {
+                eglRendererHandler.post(() -> {
+                    final Bitmap bitmap = i420Frame.yuvPlanes == null ?
+                            captureBitmapFromTexture(i420Frame) :
+                            captureBitmapFromYuvFrame(i420Frame);
 
-                // Update the bitmap of image view
-                BlurKit.getInstance().blur(bitmap, blurValue);
-                imageView.setImageBitmap(bitmap);
+                    // Update the bitmap of image view
+                    BlurKit.getInstance().blur(bitmap, blurValue);
 
-                // Frames must be released after rendering to free the native memory
-                i420Frame.release();
-            });
+                    handler.post(() -> {
+                        imageView.setImageBitmap(bitmap);
+
+                        // Frames must be released after rendering to free the native memory
+                        i420Frame.release();
+                    });
+                });
+            }
         } else {
             i420Frame.release();
         }
+    }
+
+    private Handler getEglHandler() {
+        try {
+            Field eglRendererField = videoTextureView.getClass().getDeclaredField("eglRenderer");
+            eglRendererField.setAccessible(true);
+            EglRenderer eglRenderer = (EglRenderer) eglRendererField.get(videoTextureView);
+            Field renderThreadHandlerField = eglRenderer.getClass().getDeclaredField("renderThreadHandler");
+            renderThreadHandlerField.setAccessible(true);
+            Handler eglHandler = (Handler) renderThreadHandlerField.get(eglRenderer);
+
+            return eglHandler;
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+
+        return null;
     }
 
     /**

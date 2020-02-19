@@ -356,7 +356,7 @@ public class MultiPartyActivity extends AppCompatActivity {
 
         // Share your camera
         cameraCapturerCompat = new CameraCapturer(this, getAvailableCameraSource());
-        snapshotVideoRenderer = new SnapshotVideoRenderer(this, snapshotImageView, 25);
+        snapshotVideoRenderer = new SnapshotVideoRenderer(this, snapshotImageView, 25, localVideoTextureView);
 
         localVideoTrack = LocalVideoTrack.create(this,
                 true,
@@ -539,7 +539,8 @@ public class MultiPartyActivity extends AppCompatActivity {
         videoTextureView.setVisibility(VISIBLE);
         videoTrack.addRenderer(videoTextureView);
 
-        remoteSnapshotVideoRenderer = new SnapshotVideoRenderer(getApplicationContext(), snapshotImageView, 25);
+        remoteSnapshotVideoRenderer = new SnapshotVideoRenderer(getApplicationContext(), snapshotImageView, 25, videoTextureView);
+        localVideoTrack.removeRenderer(snapshotVideoRenderer);
         videoTrack.addRenderer(remoteSnapshotVideoRenderer);
         updateRemoteBlurFrame();
 
